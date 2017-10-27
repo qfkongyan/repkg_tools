@@ -1,0 +1,241 @@
+#CROSS_COMPILE = i686-w64-mingw32-
+CC =gcc -I. -DANDROID
+AR = ar
+ECHO = echo
+ifeq ($(windir),)
+EXE =
+RM = rm -f
+else
+EXE = .exe
+RM = del
+endif
+
+OUT_DIR = out
+OUT_LIB = $(OUT_DIR)/lib/
+OUT_BIN = $(OUT_DIR)/bin/
+
+CFLAGS = -Iandroid_suport_include \
+		-Isystem/core/include \
+		-Isystem/core/libsparse/include \
+		-Isystem/core/libsparse \
+		-Iexternal/libselinux/include \
+		-Isystem/core/mkbootimg \
+		-Iexternal/pcre \
+		-Iexternal/zlib
+
+CFLAGS += \
+		-Wno-attributes \
+		-Wno-implicit-function-declaration
+
+#LIBC_FLAGS = -Ibionic/libc/include -Ibionic/libc/kernel/uapi -Ibionic/libc/kernel/uapi/asm-x86
+DFLAGS = -DHOST \
+		-DLIBLOG_LOG_TAG=1005 \
+		-DFAKE_LOG_DEVICE=1
+#		-Dlseek64=lseek \
+		-Doff64_t=off_t \
+		-Dmmap64=mmap \
+		-Dftruncate64=ftruncate 
+		
+#LDFLAGS = -L$(OUT_LIB)/ -lsparse -lselinux -lpcre -lcutils -llog -lmincrypt
+LDFLAGS += -lpthread
+PCRE_MAKEFILE = external/pcre/dist/Makefile
+ZLIB_MAKEFILE = external/zlib/src/Makefile
+
+
+SELINUX_HOST= \
+	external/libselinux/src/callbacks.c \
+	external/libselinux/src/check_context.c \
+	external/libselinux/src/freecon.c \
+	external/libselinux/src/init.c \
+	external/libselinux/src/label.c \
+	external/libselinux/src/label_file.c \
+	external/libselinux/src/label_android_property.c \
+	external/libselinux/src/label_support.c
+LIBMINCRYPT_SRCS= system/core/libmincrypt/*.c
+LIBSPARSE_SRCS= \
+	system/core/libsparse/backed_block.c \
+	system/core/libsparse/output_file.c \
+	system/core/libsparse/sparse.c \
+	system/core/libsparse/sparse_crc32.c \
+	system/core/libsparse/sparse_err.c \
+	system/core/libsparse/sparse_read.c
+EXT4FS_SRCS= \
+    system/extras/ext4_utils/make_ext4fs.c \
+    system/extras/ext4_utils/ext4_utils.c \
+    system/extras/ext4_utils/allocate.c \
+    system/extras/ext4_utils/contents.c \
+    system/extras/ext4_utils/extent.c \
+    system/extras/ext4_utils/indirect.c \
+    system/extras/ext4_utils/sha1.c \
+    system/extras/ext4_utils/wipe.c \
+    system/extras/ext4_utils/crc16.c \
+    system/extras/ext4_utils/ext4_sb.c
+EXT4FS_MAIN= \
+    system/extras/ext4_utils/make_ext4fs_main.c 
+
+LIBCUTILS_SRCS= \
+	system/core/libcutils/fs_config.c \
+	system/core/libcutils/canned_fs_config.c
+LIBLOG_SRCS= \
+	system/core/liblog/fake_log_device.c \
+	system/core/liblog/logger_write.c \
+	system/core/liblog/config_write.c \
+	system/core/liblog/logger_lock.c \
+	system/core/liblog/fake_writer.c \
+	system/core/liblog/logger_name.c
+
+all: \
+    libselinux \
+    libz \
+	libsparse \
+	libpcre \
+	libmincrypt \
+	libcutils \
+	liblog \
+	mkbootimg$(EXE) \
+	mkbootfs$(EXE) \
+	unpackbootimg$(EXE) \
+	simg2img$(EXE) \
+	simg2simg$(EXE) \
+	img2simg$(EXE) \
+	append2simg$(EXE) \
+	make_ext4fs$(EXE) \
+	ext2simg$(EXE) \
+	sgs4ext4fs$(EXE)
+
+.PHONY: libselinux
+
+libselinux:
+	@$(ECHO) "Building libselinux..."
+	@rm -rf $(OUT_LIB)/* $(OUT_BIN)/*
+	@mkdir -p $(OUT_LIB) $(OUT_BIN)
+	@cp -rf cygwin/bin/* $(OUT_BIN)
+	@$(CROSS_COMPILE)$(CC) -c $(SELINUX_SRCS) $(SELINUX_HOST) $(LDFLAGS) $(CFLAGS) $(DFLAGS) 
+	@$(AR) cqs $(OUT_LIB)/$@.a *.o
+#	@$(RM) -rfv *.o
+	@$(ECHO) "*******************************************"
+	
+libpcre:
+	@$(ECHO) "Building libpcre..."
+#	ifeq ($(PCRE_MAKEFILE), $(wildcard $(PCRE_MAKEFILE)))
+#	@cd external/pcre/dist/ && configure && make && cd -
+#	endif
+#	@$(AR) cqs $@.a external/pcre/dist/*.o external/pcre/dist/*.lo
+#	@$(RM) -rfv *.o external/pcre/dist/*.o 
+	@cp external/pcre/dist/.libs/libpcre.a $(OUT_LIB)/
+	@$(ECHO) "*******************************************"
+	
+libz:
+	@$(ECHO) "Building zlib_host..."
+#	ifeq ($(ZLIB_MAKEFILE), $(wildcard $(ZLIB_MAKEFILE)))
+#	@cd external/zlib/src/ && configure && cd -
+#	endif
+	@cd external/zlib/src/ && make && cd -
+	@$(AR) cqs $(OUT_LIB)/$@.a external/zlib/src/*.o
+	@$(RM) -rfv *.o external/zlib/src/*.o
+	@$(ECHO) "*******************************************"
+		
+libsparse: libz
+	@$(ECHO) "Building libsparse_host..."
+	@$(ECHO) "*******************************************"
+	@$(CROSS_COMPILE)$(CC) -c $(LIBSPARSE_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) 
+	@$(AR) -x $(OUT_LIB)/libz.a
+	@$(AR) cqs $(OUT_LIB)/$@.a *.o
+	@$(RM) -rfv *.o
+	@$(ECHO) "*******************************************"
+	
+libmincrypt:
+	@$(ECHO) "Building libmincrypt_host..."
+	@$(CROSS_COMPILE)$(CC) -c $(LIBMINCRYPT_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) 
+	@$(AR) cqs $(OUT_LIB)/$@.a *.o
+	@$(RM) -rfv *.o
+	@$(ECHO) "*******************************************"
+	
+libcutils:
+	@$(ECHO) "Building libcutils_host..."
+	@$(CC) -c $(LIBCUTILS_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) 
+	@$(AR) cqs $(OUT_LIB)/$@.a *.o
+	@$(RM) -rfv *.o
+	@$(ECHO) "*******************************************"
+	
+liblog:
+	@$(ECHO) "Building liblog_host..."
+	@$(CROSS_COMPILE)$(CC) -c $(LIBLOG_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS)
+	@$(AR) cqs $(OUT_LIB)/$@.a *.o
+	@$(RM) -rfv *.o
+	@$(ECHO) "*******************************************"
+	
+mkbootimg$(EXE): libmincrypt
+	@$(ECHO) "Building mkbootimg..."
+	@$(CC) 	system/core/mkbootimg/mkbootimg.c -o $(OUT_BIN)/$@ $(LDFLAGS) $(CFLAGS) $(DFLAGS) -L$(OUT_LIB)/ -lmincrypt
+	@$(ECHO) "*******************************************"
+	
+mkbootfs$(EXE): libcutils liblog
+	@$(ECHO) "Building mkbootfs..."
+	@$(CC) 	system/core/cpio/mkbootfs.c -o $(OUT_BIN)/$@  $(LDFLAGS) $(CFLAGS) $(DFLAGS) -L$(OUT_LIB)/ -lcutils -llog
+	@$(ECHO) "*******************************************"
+
+simg2img$(EXE): libz
+	@$(ECHO) "Building simg2img..."
+	@$(CROSS_COMPILE)$(CC) 	system/core/libsparse/simg2img.c -o $(OUT_BIN)/$@ $(LIBSPARSE_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) -L$(OUT_LIB)/ -lz
+	@$(ECHO) "*******************************************"
+	
+simg2simg$(EXE): libz
+	@$(ECHO) "Building simg2simg..."
+	@$(CROSS_COMPILE)$(CC) 	system/core/libsparse/simg2simg.c -o $(OUT_BIN)/$@ $(LIBSPARSE_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) -L$(OUT_LIB)/ -lz
+	@$(ECHO) "*******************************************"
+	
+img2simg$(EXE): libz
+	@$(ECHO) "Building img2simg..."
+	@$(CROSS_COMPILE)$(CC) 	system/core/libsparse/img2simg.c -o $(OUT_BIN)/$@ $(LIBSPARSE_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) -L$(OUT_LIB)/ -lz
+	@$(ECHO) "*******************************************"
+	
+append2simg$(EXE): libz
+	@$(ECHO) "Building append2simg..."
+	@$(CROSS_COMPILE)$(CC) 	system/core/libsparse/append2simg.c -o $(OUT_BIN)/$@ $(LIBSPARSE_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) -L$(OUT_LIB)/ -lz
+	@$(ECHO) "*******************************************"
+	
+make_ext4fs$(EXE): libselinux libcutils libsparse libpcre liblog
+	@$(ECHO) "Building make_ext4fs..."
+	@$(CROSS_COMPILE)$(CC) -o $(OUT_BIN)/$@ $(EXT4FS_MAIN) $(EXT4FS_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) -L$(OUT_LIB)/ -lselinux -lcutils -lsparse -lpcre -llog
+	@$(ECHO) "*******************************************"
+	
+ext2simg$(EXE): libselinux libsparse libpcre
+	@$(ECHO) "Building ext2simg..."
+	@$(CROSS_COMPILE)$(CC) -o $(OUT_BIN)/$@ 	system/extras/ext4_utils/ext2simg.c $(EXT4FS_SRCS) $(LDFLAGS) $(CFLAGS) $(DFLAGS) -L$(OUT_LIB)/ -lselinux -lsparse -lpcre
+	@$(ECHO) "*******************************************"
+	
+unpackbootimg$(EXE):
+	@$(ECHO) "Building unpackbootimg..."
+	@$(CROSS_COMPILE)$(CC) 	system/core/mkbootimg/unpackbootimg.c -o $(OUT_BIN)/$@ $(LDFLAGS) $(CFLAGS) $(DFLAGS) 
+	@$(ECHO) "*******************************************"
+
+sgs4ext4fs$(EXE):
+	@$(ECHO) "Building sgs4ext4fs..."
+	@$(CROSS_COMPILE)$(CC) external/sgs4ext4fs/main.c -o $(OUT_BIN)/$@ $(LDFLAGS) $(CFLAGS) $(DFLAGS) 
+	@$(ECHO) "*******************************************"
+	
+	@$(ECHO) "Cleaning..."
+	@$(RM) -rfv *.o
+
+.PHONY:
+
+clean:
+	@$(ECHO) "Cleaning..."
+	@$(RM) -rfv *.o *.a *.exe $(OUT_DIR)/
+	@$(RM) -rfv external/libselinux/src/*.o
+#	@$(RM) -rfv external/pcre/dist/*.o
+	@$(RM) -rfv external/zlib/src/*.o
+
+	@$(ECHO) "*******************************************"
+	
+.PHONY:
+
+clear:
+	@$(ECHO) "Clearing..."
+	@$(RM) -rfv *.o *.a mkuserimg.sh file_contexts simg_dump.py
+#	@$(RM) -drfv \
+	external \
+	system 
+
+	@$(ECHO) "*******************************************"
