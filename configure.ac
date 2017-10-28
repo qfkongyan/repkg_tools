@@ -11,6 +11,7 @@ AM_INIT_AUTOMAKE(repkg_tools,1.0)
 AC_PROG_CXX
 AC_PROG_CC
 AC_PROG_MAKE_SET
+AC_USE_SYSTEM_EXTENSIONS 
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lcutils':
@@ -73,9 +74,9 @@ AC_FUNC_STRNLEN
 AC_CHECK_FUNCS([alarm atexit bzero clock_gettime ftruncate getmntent gettimeofday isascii localtime_r memmove memset mkdir munmap realpath regcomp select setenv socket sqrt strcasecmp strchr strcspn strdup strerror strncasecmp strndup strpbrk strrchr strstr strtol strtoul strtoull tzset])
 
 m4_pushdef([AC_CONFIG_SUBDIRS], []) 
-AC_CONFIG_SUBDIRS([external/libselinux
-                   external/zlib/src
-				   ])
+AC_CONFIG_SUBDIRS([external/pcre/dist
+                   external/zlib/src])
+
 AC_OUTPUT([Makefile
 			external/libselinux/Makefile
 			external/zlib/src/Makefile
@@ -87,4 +88,6 @@ AC_OUTPUT([Makefile
 			system/core/cpio/Makefile
 			system/extras/ext4_utils/Makefile
 			system/core/mkbootimg/Makefile
+			external/bzip2/Makefile
+			bootable/recovery/applypatch/Makefile
 			])
