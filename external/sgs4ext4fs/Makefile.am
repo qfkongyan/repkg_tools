@@ -6,4 +6,4 @@ sgs4ext4fs_SOURCES = \
 
 top_srcdir=.
 AM_CPPFLAGS		= -I$(top_srcdir)/
-AM_CPPFLAGS		= -Wno-unused-result
+AM_CPPFLAGS		+= -Wno-unused-result
