@@ -1,0 +1,44 @@
+#
+# NOTE! Don't add files that are generated in specific
+# subdirectories here. Add them in the ".gitignore" file
+# in that subdirectory instead.
+#
+# Normal rules
+#
+.*
+*.o
+*.lo
+*.la
+*.in
+*.log
+*.o.*
+*.a
+*/.libs
+
+# folder
+out/
+
+# host programs on Cygwin
+*.exe
+
+# Build tree
+/build-*
+
+#
+# Top-level generic files
+#
+/MLO*
+/SPL
+/System.map
+/Makefile
+/boards.cfg
+
+#
+# git files that we don't want to ignore even it they are dot-files
+#
+!.gitignore
+!.mailmap
+
+*.orig
+*~
+\#*#
