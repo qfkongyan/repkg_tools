@@ -14,3 +14,13 @@ libselinux_la_SOURCES = \
 top_srcdir=.
 AM_CPPFLAGS		= -I$(top_srcdir)/include
 AM_CPPFLAGS		+= -I$(top_srcdir)/../pcre
+AM_CPPFLAGS		+= -DANDROID \
+    -DNO_PERSISTENTLY_STORED_PATTERNS \
+    -DDISABLE_SETRANS \
+    -DDISABLE_BOOL \
+    -D_GNU_SOURCE \
+    -DNO_MEDIA_BACKEND \
+    -DNO_X_BACKEND \
+    -DNO_DB_BACKEND \
+    -DAUDITD_LOG_TAG=1003 \
+    -DBUILD_HOST

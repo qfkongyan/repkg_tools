@@ -29,9 +29,21 @@ AM_CPPFLAGS+= -Doff64_t=off_t \
 make_ext4fs_SOURCES= make_ext4fs_main.c \
 	$(ext4fs_source)
 
-make_ext4fs_LDADD = libmincrypt.a libselinux.a libcutils.a libsparse.a libpcre.a liblog.a libz.a
+make_ext4fs_LDADD = $(top_srcdir)/../../../out/lib/libmincrypt.a \
+		    $(top_srcdir)/../../../out/lib/libselinux.a \
+		    $(top_srcdir)/../../../out/lib/libcutils.a \
+		    $(top_srcdir)/../../../out/lib/libsparse.a \
+		    $(top_srcdir)/../../../out/lib/libpcre.a \
+		    $(top_srcdir)/../../../out/lib/liblog.a \
+		    $(top_srcdir)/../../../out/lib/libz.a
 
 
 ext2simg_SOURCES= make_ext4fs_main.c \
         $(ext4fs_source)
-ext2simg_LDADD = libmincrypt.a libselinux.a libcutils.a libsparse.a libpcre.a liblog.a libz.a
+ext2simg_LDADD = $(top_srcdir)/../../../out/lib/libmincrypt.a \
+		 $(top_srcdir)/../../../out/lib/libselinux.a \
+		 $(top_srcdir)/../../../out/lib/libcutils.a \
+		 $(top_srcdir)/../../../out/lib/libsparse.a \
+		 $(top_srcdir)/../../../out/lib/libpcre.a \
+		 $(top_srcdir)/../../../out/lib/liblog.a \
+		 $(top_srcdir)/../../../out/lib/libz.a
