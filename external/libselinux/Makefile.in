@@ -123,8 +123,10 @@ libselinux_la_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
 am_libselinux_la_OBJECTS = ./src/callbacks.lo ./src/check_context.lo \
 	./src/freecon.lo ./src/init.lo ./src/label.lo \
-	./src/label_file.lo ./src/label_android_property.lo \
-	./src/label_support.lo
+	./src/label_file.lo ./src/label_support.lo \
+	./src/matchpathcon.lo ./src/setrans_client.lo ./src/sha1.lo \
+	./src/lgetfilecon.lo ./src/lsetfilecon.lo ./src/regex.lo \
+	./src/label_backends_android.lo ./src/canonicalize_context.lo
 libselinux_la_OBJECTS = $(am_libselinux_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -319,10 +321,20 @@ libselinux_la_SOURCES = \
 	./src/init.c \
 	./src/label.c \
 	./src/label_file.c \
-	./src/label_android_property.c \
-	./src/label_support.c
+	./src/label_support.c \
+	./src/matchpathcon.c \
+	./src/setrans_client.c \
+	./src/sha1.c \
+	./src/lgetfilecon.c \
+	./src/lsetfilecon.c \
+	./src/regex.c \
+	./src/label_backends_android.c \
+	./src/canonicalize_context.c
 
-AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/../pcre
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/../pcre/include/ \
+	-DANDROID -DNO_PERSISTENTLY_STORED_PATTERNS -DDISABLE_SETRANS \
+	-DDISABLE_BOOL -D_GNU_SOURCE -DNO_MEDIA_BACKEND -DNO_X_BACKEND \
+	-DNO_DB_BACKEND -DBUILD_HOST -DUSE_PCRE2
 all: all-am
 
 .SUFFIXES:
@@ -405,9 +417,21 @@ src/$(DEPDIR)/$(am__dirstamp):
 ./src/init.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 ./src/label.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 ./src/label_file.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-./src/label_android_property.lo: src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
 ./src/label_support.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+./src/matchpathcon.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+./src/setrans_client.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+./src/sha1.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+./src/lgetfilecon.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+./src/lsetfilecon.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+./src/regex.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+./src/label_backends_android.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+./src/canonicalize_context.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
 libselinux.la: $(libselinux_la_OBJECTS) $(libselinux_la_DEPENDENCIES) $(EXTRA_libselinux_la_DEPENDENCIES) 
@@ -422,13 +446,20 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/callbacks.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/canonicalize_context.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/check_context.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/freecon.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/init.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/label.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/label_android_property.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/label_backends_android.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/label_file.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/label_support.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/lgetfilecon.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/lsetfilecon.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/matchpathcon.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/regex.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/setrans_client.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./src/$(DEPDIR)/sha1.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\

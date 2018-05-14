@@ -3,26 +3,32 @@
 
 /* Private definitions used internally by libselinux. */
 
-/* xattr name for SELinux attributes. */
+/*
+ * xattr name for SELinux attributes.
+ * This may have been exported via Kernel uapi header.
+ */
+#ifndef XATTR_NAME_SELINUX
 #define XATTR_NAME_SELINUX "security.selinux"
+#endif
 
 /* Initial length guess for getting contexts. */
 #define INITCONTEXTLEN 255
 
+/* selinux file system type */
+#define SELINUXFS "selinuxfs"
+
 /* selinuxfs magic number */
 #define SELINUX_MAGIC 0xf97cff8c
 
-/* Preferred selinuxfs mount point directory paths. */
+/* Preferred selinux mount location */
 #define SELINUXMNT "/sys/fs/selinux"
 #define OLDSELINUXMNT "/selinux"
 
-/* selinuxfs filesystem type string. */
-#define SELINUXFS "selinuxfs"
-
-/* selinuxfs mount point determined at runtime */
+/* selinuxfs mount point */
 extern char *selinux_mnt;
 
-/* First version of policy supported in mainline Linux. */
+#define FILECONTEXTS "/etc/security/selinux/file_contexts"
+
 #define DEFAULT_POLICY_VERSION 15
 
 #endif

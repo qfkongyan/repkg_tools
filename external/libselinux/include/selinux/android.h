@@ -17,11 +17,15 @@ extern struct selabel_handle* selinux_android_prop_context_handle(void);
 
 extern struct selabel_handle* selinux_android_service_context_handle(void);
 
+extern struct selabel_handle* selinux_android_hw_service_context_handle(void);
+
+extern struct selabel_handle* selinux_android_vendor_service_context_handle(void);
+
 extern void selinux_android_set_sehandle(const struct selabel_handle *hndl);
 
 extern int selinux_android_load_policy(void);
 
-extern int selinux_android_reload_policy(void);
+extern int selinux_android_load_policy_from_fd(int fd, const char *description);
 
 extern int selinux_android_setcon(const char *con);
 
@@ -44,6 +48,7 @@ extern int selinux_log_callback(int type, const char *fmt, ...)
 #define SELINUX_ANDROID_RESTORECON_FORCE    8
 #define SELINUX_ANDROID_RESTORECON_DATADATA 16
 #define SELINUX_ANDROID_RESTORECON_SKIPCE   32
+#define SELINUX_ANDROID_RESTORECON_CROSS_FILESYSTEMS   64
 extern int selinux_android_restorecon(const char *file, unsigned int flags);
 
 extern int selinux_android_restorecon_pkgdir(const char *pkgdir,

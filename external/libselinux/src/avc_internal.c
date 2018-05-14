@@ -65,7 +65,7 @@ int avc_netlink_open(int blocking)
 		rc = fd;
 		goto out;
 	}
-
+	
 	if (!blocking && fcntl(fd, F_SETFL, O_NONBLOCK)) {
 		close(fd);
 		fd = -1;
@@ -93,10 +93,10 @@ void avc_netlink_close(void)
 {
 	if (fd >= 0)
 		close(fd);
-	fd = -1;	
+	fd = -1;
 }
 
-static int avc_netlink_receive(char *buf, unsigned buflen, int blocking)
+static int avc_netlink_receive(void *buf, unsigned buflen, int blocking)
 {
 	int rc;
 	struct pollfd pfd = { fd, POLLIN | POLLPRI, 0 };
@@ -125,14 +125,14 @@ static int avc_netlink_receive(char *buf, unsigned buflen, int blocking)
 
 	if (nladdrlen != sizeof nladdr) {
 		avc_log(SELINUX_WARNING,
-			"%s:  warning: netlink address truncated, len %d?\n",
+			"%s:  warning: netlink address truncated, len %u?\n",
 			avc_prefix, nladdrlen);
 		return -1;
 	}
 
 	if (nladdr.nl_pid) {
 		avc_log(SELINUX_WARNING,
-			"%s:  warning: received spoofed netlink packet from: %d\n",
+			"%s:  warning: received spoofed netlink packet from: %u\n",
 			avc_prefix, nladdr.nl_pid);
 		return -1;
 	}
@@ -155,7 +155,7 @@ static int avc_netlink_receive(char *buf, unsigned buflen, int blocking)
 	return 0;
 }
 
-static int avc_netlink_process(char *buf)
+static int avc_netlink_process(void *buf)
 {
 	int rc;
 	struct nlmsghdr *nlh = (struct nlmsghdr *)buf;
@@ -176,6 +176,7 @@ static int avc_netlink_process(char *buf)
 
 	case SELNL_MSG_SETENFORCE:{
 		struct selnl_msg_setenforce *msg = NLMSG_DATA(nlh);
+		msg->val = !!msg->val;
 		avc_log(SELINUX_INFO,
 			"%s:  received setenforce notice (enforcing=%d)\n",
 			avc_prefix, msg->val);
@@ -197,7 +198,7 @@ static int avc_netlink_process(char *buf)
 	case SELNL_MSG_POLICYLOAD:{
 		struct selnl_msg_policyload *msg = NLMSG_DATA(nlh);
 		avc_log(SELINUX_INFO,
-			"%s:  received policyload notice (seqno=%d)\n",
+			"%s:  received policyload notice (seqno=%u)\n",
 			avc_prefix, msg->seqno);
 		rc = avc_ss_reset(msg->seqno);
 		if (rc < 0) {

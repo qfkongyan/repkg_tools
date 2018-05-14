@@ -11,7 +11,7 @@
 #define SO_PEERSEC 31
 #endif
 
-int getpeercon(int fd, char ** context)
+int getpeercon_raw(int fd, char ** context)
 {
 	char *buf;
 	socklen_t size;
@@ -43,3 +43,19 @@ int getpeercon(int fd, char ** context)
 	return ret;
 }
 
+hidden_def(getpeercon_raw)
+
+int getpeercon(int fd, char ** context)
+{
+	int ret;
+	char * rcontext;
+
+	ret = getpeercon_raw(fd, &rcontext);
+
+	if (!ret) {
+		ret = selinux_raw_to_trans_context(rcontext, context);
+		freecon(rcontext);
+	}
+
+	return ret;
+}

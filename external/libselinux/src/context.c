@@ -133,13 +133,11 @@ char *context_str(context_t context)
 	if (n->current_str != 0) {
 		char *cp = n->current_str;
 
-		strcpy(cp, n->component[0]);
-		cp += strlen(cp);
+		cp = stpcpy(cp, n->component[0]);
 		for (i = 1; i < 4; i++) {
 			if (n->component[i]) {
 				*cp++ = ':';
-				strcpy(cp, n->component[i]);
-				cp += strlen(cp);
+				cp = stpcpy(cp, n->component[i]);
 			}
 		}
 	}

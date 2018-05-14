@@ -3,7 +3,9 @@
 #include "dso.h"
 
 hidden_proto(selinux_mkload_policy)
+    hidden_proto(fini_selinuxmnt)
     hidden_proto(set_selinuxmnt)
+    hidden_proto(selinuxfs_exists)
     hidden_proto(security_disable)
     hidden_proto(security_policyvers)
     hidden_proto(security_load_policy)
@@ -23,6 +25,8 @@ hidden_proto(selinux_mkload_policy)
     hidden_proto(security_compute_user_raw)
     hidden_proto(security_compute_create)
     hidden_proto(security_compute_create_raw)
+    hidden_proto(security_compute_create_name)
+    hidden_proto(security_compute_create_name_raw)
     hidden_proto(security_compute_member_raw)
     hidden_proto(security_compute_relabel_raw)
     hidden_proto(is_selinux_enabled)
@@ -55,16 +59,21 @@ hidden_proto(selinux_mkload_policy)
     hidden_proto(security_getenforce)
     hidden_proto(security_setenforce)
     hidden_proto(security_deny_unknown)
+    hidden_proto(selinux_boolean_sub)
+    hidden_proto(selinux_current_policy_path)
     hidden_proto(selinux_binary_policy_path)
+    hidden_proto(selinux_booleans_subs_path)
     hidden_proto(selinux_default_context_path)
     hidden_proto(selinux_securetty_types_path)
     hidden_proto(selinux_failsafe_context_path)
     hidden_proto(selinux_removable_context_path)
     hidden_proto(selinux_virtual_domain_context_path)
     hidden_proto(selinux_virtual_image_context_path)
+    hidden_proto(selinux_lxc_contexts_path)
     hidden_proto(selinux_file_context_path)
     hidden_proto(selinux_file_context_homedir_path)
     hidden_proto(selinux_file_context_local_path)
+    hidden_proto(selinux_file_context_subs_dist_path)
     hidden_proto(selinux_file_context_subs_path)
     hidden_proto(selinux_netfilter_context_path)
     hidden_proto(selinux_homedir_context_path)
@@ -74,6 +83,10 @@ hidden_proto(selinux_mkload_policy)
     hidden_proto(selinux_media_context_path)
     hidden_proto(selinux_x_context_path)
     hidden_proto(selinux_sepgsql_context_path)
+    hidden_proto(selinux_openrc_contexts_path)
+    hidden_proto(selinux_openssh_contexts_path)
+    hidden_proto(selinux_snapperd_contexts_path)
+    hidden_proto(selinux_systemd_contexts_path)
     hidden_proto(selinux_path)
     hidden_proto(selinux_check_passwd_access)
     hidden_proto(selinux_check_securetty_context)
@@ -91,6 +104,10 @@ hidden_proto(security_get_initial_context);
 hidden_proto(security_get_initial_context_raw);
 hidden_proto(selinux_reset_config);
 
+hidden void flush_class_cache(void);
+
+extern int load_setlocaldefs hidden;
+extern int require_seusers hidden;
 extern int selinux_page_size hidden;
 
 /* Make pthread_once optional */
@@ -112,10 +129,7 @@ extern int selinux_page_size hidden;
 
 /* Pthread key macros */
 #define __selinux_key_create(KEY, DESTRUCTOR)			\
-	do {							\
-		if (pthread_key_create != NULL)			\
-			pthread_key_create(KEY, DESTRUCTOR);	\
-	} while (0)
+	(pthread_key_create != NULL ? pthread_key_create(KEY, DESTRUCTOR) : -1)
 
 #define __selinux_key_delete(KEY)				\
 	do {							\
@@ -129,4 +143,7 @@ extern int selinux_page_size hidden;
 			pthread_setspecific(KEY, VALUE);	\
 	} while (0)
 
+#define SELINUXDIR "/etc/selinux/"
+#define SELINUXCONFIG SELINUXDIR "config"
 
+extern int has_selinux_config hidden;

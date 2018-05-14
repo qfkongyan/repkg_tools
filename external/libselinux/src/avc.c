@@ -67,7 +67,7 @@ static inline int avc_hash(security_id_t ssid,
 	    & (AVC_CACHE_SLOTS - 1);
 }
 
-int avc_context_to_sid(const char * ctx, security_id_t * sid)
+int avc_context_to_sid_raw(const char * ctx, security_id_t * sid)
 {
 	int rc;
 	/* avc_init needs to be called before this function */
@@ -79,7 +79,22 @@ int avc_context_to_sid(const char * ctx, security_id_t * sid)
 	return rc;
 }
 
-int avc_sid_to_context(security_id_t sid, char ** ctx)
+int avc_context_to_sid(const char * ctx, security_id_t * sid)
+{
+	int ret;
+	char * rctx;
+
+	if (selinux_trans_to_raw_context(ctx, &rctx))
+		return -1;
+
+	ret = avc_context_to_sid_raw(rctx, sid);
+
+	freecon(rctx);
+
+	return ret;
+}
+
+int avc_sid_to_context_raw(security_id_t sid, char ** ctx)
 {
 	int rc;
 	*ctx = NULL;
@@ -90,15 +105,40 @@ int avc_sid_to_context(security_id_t sid, char ** ctx)
 	return rc;
 }
 
+int avc_sid_to_context(security_id_t sid, char ** ctx)
+{
+	int ret;
+	char * rctx;
+
+	ret = avc_sid_to_context_raw(sid, &rctx);
+
+	if (ret == 0) {
+		ret = selinux_raw_to_trans_context(rctx, ctx);
+		freecon(rctx);
+	}
+
+	return ret;
+}
+
+int sidget(security_id_t sid __attribute__((unused)))
+{
+	return 1;
+}
+
+int sidput(security_id_t sid __attribute__((unused)))
+{
+	return 1;
+}
+
 int avc_get_initial_sid(const char * name, security_id_t * sid)
 {
 	int rc;
 	char * con;
 
-	rc = security_get_initial_context(name, &con);
+	rc = security_get_initial_context_raw(name, &con);
 	if (rc < 0)
 		return rc;
-	rc = avc_context_to_sid(con, sid);
+	rc = avc_context_to_sid_raw(con, sid);
 
 	freecon(con);
 
@@ -248,7 +288,7 @@ void avc_av_stats(void)
 
 	avc_release_lock(avc_lock);
 
-	avc_log(SELINUX_INFO, "%s:  %d AV entries and %d/%d buckets used, "
+	avc_log(SELINUX_INFO, "%s:  %u AV entries and %d/%d buckets used, "
 		"longest chain length %d\n", avc_prefix,
 		avc_cache.active_nodes,
 		slots_used, AVC_CACHE_SLOTS, max_chain_len);
@@ -431,7 +471,7 @@ static int avc_insert(security_id_t ssid, security_id_t tsid,
 
 	if (ae->avd.seqno < avc_cache.latest_notif) {
 		avc_log(SELINUX_WARNING,
-			"%s:  seqno %d < latest_notif %d\n", avc_prefix,
+			"%s:  seqno %u < latest_notif %u\n", avc_prefix,
 			ae->avd.seqno, avc_cache.latest_notif);
 		errno = EAGAIN;
 		rc = -1;
@@ -683,11 +723,6 @@ void avc_audit(security_id_t ssid, security_id_t tsid,
 
 	log_append(avc_audit_buf, " ");
 	avc_dump_query(ssid, tsid, tclass);
-
-	/* append permissive=0|1 like the kernel at the end */
-	if (denied || !requested)
-		log_append(avc_audit_buf, " permissive=%d", !result);
-
 	log_append(avc_audit_buf, "\n");
 	avc_log(SELINUX_AVC, "%s", avc_audit_buf);
 
@@ -750,9 +785,9 @@ int avc_has_perm_noaudit(security_id_t ssid,
 		avc_cache_stats_incr(entry_misses);
 		rc = avc_lookup(ssid, tsid, tclass, requested, aeref);
 		if (rc) {
-			rc = security_compute_av(ssid->ctx, tsid->ctx,
-						 tclass, requested,
-						 &entry.avd);
+			rc = security_compute_av_flags_raw(ssid->ctx, tsid->ctx,
+							   tclass, requested,
+							   &entry.avd);
 			if (rc && errno == EINVAL && !avc_enforcing) {
 				rc = errno = 0;
 				goto out;
@@ -819,8 +854,8 @@ int avc_compute_create(security_id_t ssid,  security_id_t tsid,
 	rc = avc_lookup(ssid, tsid, tclass, 0, &aeref);
 	if (rc) {
 		/* need to make a cache entry for this tuple */
-		rc = security_compute_av(ssid->ctx, tsid->ctx,
-					 tclass, 0, &entry.avd);
+		rc = security_compute_av_flags_raw(ssid->ctx, tsid->ctx,
+						   tclass, 0, &entry.avd);
 		if (rc)
 			goto out;
 		rc = avc_insert(ssid, tsid, tclass, &entry, &aeref);
@@ -831,7 +866,7 @@ int avc_compute_create(security_id_t ssid,  security_id_t tsid,
 	/* check for a saved compute_create value */
 	if (!aeref.ae->create_sid) {
 		/* need to query the kernel policy */
-		rc = security_compute_create(ssid->ctx, tsid->ctx, tclass,
+		rc = security_compute_create_raw(ssid->ctx, tsid->ctx, tclass,
 						 &ctx);
 		if (rc)
 			goto out;
@@ -847,6 +882,26 @@ int avc_compute_create(security_id_t ssid,  security_id_t tsid,
 	}
 
 	rc = 0;
+out:
+	avc_release_lock(avc_lock);
+	return rc;
+}
+
+int avc_compute_member(security_id_t ssid,  security_id_t tsid,
+		       security_class_t tclass, security_id_t *newsid)
+{
+	int rc;
+	char * ctx = NULL;
+	*newsid = NULL;
+	/* avc_init needs to be called before this function */
+	assert(avc_running);
+	avc_get_lock(avc_lock);
+
+	rc = security_compute_member_raw(ssid->ctx, tsid->ctx, tclass, &ctx);
+	if (rc)
+		goto out;
+	rc = sidtab_context_to_sid(&avc_sidtab, ctx, newsid);
+	freecon(ctx);
 out:
 	avc_release_lock(avc_lock);
 	return rc;

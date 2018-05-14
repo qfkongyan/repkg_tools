@@ -80,6 +80,7 @@ AC_CONFIG_SUBDIRS([external/pcre/dist
 AC_OUTPUT([Makefile
 			external/libselinux/Makefile
 			external/zlib/src/Makefile
+                        external/pcre/dist2/Makefile
 			external/sgs4ext4fs/Makefile
 			system/core/libsparse/Makefile
 			system/core/libcutils/Makefile

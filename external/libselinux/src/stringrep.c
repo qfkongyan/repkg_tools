@@ -158,6 +158,28 @@ err1:
 	return NULL;
 }
 
+hidden void flush_class_cache(void)
+{
+	struct discover_class_node *cur = discover_class_cache, *prev = NULL;
+	size_t i;
+
+	while (cur != NULL) {
+		free(cur->name);
+
+		for (i = 0; i < MAXVECTORS; i++)
+			free(cur->perms[i]);
+
+		free(cur->perms);
+
+		prev = cur;
+		cur = cur->next;
+
+		free(prev);
+	}
+
+	discover_class_cache = NULL;
+}
+
 security_class_t string_to_security_class(const char *s)
 {
 	struct discover_class_node *node;
@@ -173,6 +195,27 @@ security_class_t string_to_security_class(const char *s)
 	}
 
 	return map_class(node->value);
+}
+
+security_class_t mode_to_security_class(mode_t m) {
+
+	if (S_ISREG(m))
+		return string_to_security_class("file");
+	if (S_ISDIR(m))
+		return string_to_security_class("dir");
+	if (S_ISCHR(m))
+		return string_to_security_class("chr_file");
+	if (S_ISBLK(m))
+		return string_to_security_class("blk_file");
+	if (S_ISFIFO(m))
+		return string_to_security_class("fifo_file");
+	if (S_ISLNK(m))
+		return string_to_security_class("lnk_file");
+	if (S_ISSOCK(m))
+		return string_to_security_class("sock_file");
+
+	errno=EINVAL;
+	return 0;
 }
 
 access_vector_t string_to_av_perm(security_class_t tclass, const char *s)
@@ -199,9 +242,10 @@ const char *security_class_to_string(security_class_t tclass)
 	tclass = unmap_class(tclass);
 
 	node = get_class_cache_entry_value(tclass);
-	if (node)
+	if (node == NULL)
+		return NULL;
+	else
 		return node->name;
-	return NULL;
 }
 
 const char *security_av_perm_to_string(security_class_t tclass,
@@ -274,4 +318,32 @@ int security_av_string(security_class_t tclass, access_vector_t av, char **res)
 	sprintf(ptr, "}");
 out:
 	return rc;
+}
+
+void print_access_vector(security_class_t tclass, access_vector_t av)
+{
+	const char *permstr;
+	access_vector_t bit = 1;
+
+	if (av == 0) {
+		printf(" null");
+		return;
+	}
+
+	printf(" {");
+
+	while (av) {
+		if (av & bit) {
+			permstr = security_av_perm_to_string(tclass, bit);
+			if (!permstr)
+				break;
+			printf(" %s", permstr);
+			av &= ~bit;
+		}
+		bit <<= 1;
+	}
+
+	if (av)
+		printf(" 0x%x", av);
+	printf(" }");
 }

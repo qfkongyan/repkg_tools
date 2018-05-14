@@ -10,11 +10,11 @@
 #include "policy.h"
 #include "mapping.h"
 
-int security_compute_av(const char * scon,
-			const char * tcon,
-			security_class_t tclass,
-			access_vector_t requested,
-			struct av_decision *avd)
+int security_compute_av_flags_raw(const char * scon,
+				  const char * tcon,
+				  security_class_t tclass,
+				  access_vector_t requested,
+				  struct av_decision *avd)
 {
 	char path[PATH_MAX];
 	char *buf;
@@ -60,7 +60,9 @@ int security_compute_av(const char * scon,
 	} else if (ret < 6)
 		avd->flags = 0;
 
-	map_decision(tclass, avd);
+	/* If tclass invalid, kernel sets avd according to deny_unknown flag */
+	if (tclass != 0)
+		map_decision(tclass, avd);
 
 	ret = 0;
       out2:
@@ -70,3 +72,86 @@ int security_compute_av(const char * scon,
 	return ret;
 }
 
+hidden_def(security_compute_av_flags_raw)
+
+int security_compute_av_raw(const char * scon,
+			    const char * tcon,
+			    security_class_t tclass,
+			    access_vector_t requested,
+			    struct av_decision *avd)
+{
+	struct av_decision lavd;
+	int ret;
+
+	ret = security_compute_av_flags_raw(scon, tcon, tclass,
+					    requested, &lavd);
+	if (ret == 0) {
+		avd->allowed = lavd.allowed;
+		avd->decided = lavd.decided;
+		avd->auditallow = lavd.auditallow;
+		avd->auditdeny = lavd.auditdeny;
+		avd->seqno = lavd.seqno;
+		/* NOTE:
+		 * We should not return avd->flags via the interface
+		 * due to the binary compatibility.
+		 */
+	}
+	return ret;
+}
+
+hidden_def(security_compute_av_raw)
+
+int security_compute_av_flags(const char * scon,
+			      const char * tcon,
+			      security_class_t tclass,
+			      access_vector_t requested,
+			      struct av_decision *avd)
+{
+	char * rscon;
+	char * rtcon;
+	int ret;
+
+	if (selinux_trans_to_raw_context(scon, &rscon))
+		return -1;
+	if (selinux_trans_to_raw_context(tcon, &rtcon)) {
+		freecon(rscon);
+		return -1;
+	}
+	ret = security_compute_av_flags_raw(rscon, rtcon, tclass,
+					    requested, avd);
+
+	freecon(rscon);
+	freecon(rtcon);
+
+	return ret;
+}
+
+hidden_def(security_compute_av_flags)
+
+int security_compute_av(const char * scon,
+			const char * tcon,
+			security_class_t tclass,
+			access_vector_t requested, struct av_decision *avd)
+{
+	struct av_decision lavd;
+	int ret;
+
+	ret = security_compute_av_flags(scon, tcon, tclass,
+					requested, &lavd);
+	if (ret == 0)
+	{
+		avd->allowed = lavd.allowed;
+		avd->decided = lavd.decided;
+		avd->auditallow = lavd.auditallow;
+		avd->auditdeny = lavd.auditdeny;
+		avd->seqno = lavd.seqno;
+		/* NOTE:
+		 * We should not return avd->flags via the interface
+		 * due to the binary compatibility.
+		 */
+	}
+
+	return ret;
+}
+
+hidden_def(security_compute_av)

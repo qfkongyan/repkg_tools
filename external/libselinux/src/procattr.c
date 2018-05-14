@@ -1,6 +1,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,12 +9,63 @@
 #include "selinux_internal.h"
 #include "policy.h"
 
-#ifdef HOST
+#define UNSET (char *) -1
+
+static __thread char *prev_current = UNSET;
+static __thread char * prev_exec = UNSET;
+static __thread char * prev_fscreate = UNSET;
+static __thread char * prev_keycreate = UNSET;
+static __thread char * prev_sockcreate = UNSET;
+
+static pthread_once_t once = PTHREAD_ONCE_INIT;
+static pthread_key_t destructor_key;
+static int destructor_key_initialized = 0;
+static __thread char destructor_initialized;
+
+#ifndef __ANDROID__
+/* Android declares this in unistd.h and has a definition for it */
 static pid_t gettid(void)
 {
 	return syscall(__NR_gettid);
 }
 #endif
+
+static void procattr_thread_destructor(void __attribute__((unused)) *unused)
+{
+	if (prev_current != UNSET)
+		free(prev_current);
+	if (prev_exec != UNSET)
+		free(prev_exec);
+	if (prev_fscreate != UNSET)
+		free(prev_fscreate);
+	if (prev_keycreate != UNSET)
+		free(prev_keycreate);
+	if (prev_sockcreate != UNSET)
+		free(prev_sockcreate);
+}
+
+void __attribute__((destructor)) procattr_destructor(void);
+
+void hidden __attribute__((destructor)) procattr_destructor(void)
+{
+	if (destructor_key_initialized)
+		__selinux_key_delete(destructor_key);
+}
+
+static inline void init_thread_destructor(void)
+{
+	if (destructor_initialized == 0) {
+		__selinux_setspecific(destructor_key, (void *)1);
+		destructor_initialized = 1;
+	}
+}
+
+static void init_procattr(void)
+{
+	if (__selinux_key_create(&destructor_key, procattr_thread_destructor) == 0) {
+		destructor_key_initialized = 1;
+	}
+}
 
 static int openattr(pid_t pid, const char *attr, int flags)
 {
@@ -46,14 +98,50 @@ out:
 	return fd;
 }
 
-static int getprocattrcon(char ** context,
-			  pid_t pid, const char *attr)
+static int getprocattrcon_raw(char ** context,
+			      pid_t pid, const char *attr)
 {
 	char *buf;
 	size_t size;
 	int fd;
 	ssize_t ret;
 	int errno_hold;
+	char * prev_context;
+
+	__selinux_once(once, init_procattr);
+	init_thread_destructor();
+
+	switch (attr[0]) {
+		case 'c':
+			prev_context = prev_current;
+			break;
+		case 'e':
+			prev_context = prev_exec;
+			break;
+		case 'f':
+			prev_context = prev_fscreate;
+			break;
+		case 'k':
+			prev_context = prev_keycreate;
+			break;
+		case 's':
+			prev_context = prev_sockcreate;
+			break;
+		case 'p':
+			prev_context = NULL;
+			break;
+		default:
+			errno = ENOENT;
+			return -1;
+	};
+
+	if (prev_context && prev_context != UNSET) {
+		*context = strdup(prev_context);
+		if (!(*context)) {
+			return -1;
+		}
+		return 0;
+	}
 
 	fd = openattr(pid, attr, O_RDONLY);
 	if (fd < 0)
@@ -93,40 +181,122 @@ static int getprocattrcon(char ** context,
 	return ret;
 }
 
-static int setprocattrcon(const char * context,
+static int getprocattrcon(char ** context,
 			  pid_t pid, const char *attr)
+{
+	int ret;
+	char * rcontext;
+
+	ret = getprocattrcon_raw(&rcontext, pid, attr);
+
+	if (!ret) {
+		ret = selinux_raw_to_trans_context(rcontext, context);
+		freecon(rcontext);
+	}
+
+	return ret;
+}
+
+static int setprocattrcon_raw(const char * context,
+			      pid_t pid, const char *attr)
 {
 	int fd;
 	ssize_t ret;
 	int errno_hold;
+	char **prev_context, *context2 = NULL;
+
+	__selinux_once(once, init_procattr);
+	init_thread_destructor();
+
+	switch (attr[0]) {
+		case 'c':
+			prev_context = &prev_current;
+			break;
+		case 'e':
+			prev_context = &prev_exec;
+			break;
+		case 'f':
+			prev_context = &prev_fscreate;
+			break;
+		case 'k':
+			prev_context = &prev_keycreate;
+			break;
+		case 's':
+			prev_context = &prev_sockcreate;
+			break;
+		default:
+			errno = ENOENT;
+			return -1;
+	};
+
+	if (!context && !*prev_context)
+		return 0;
+	if (context && *prev_context && *prev_context != UNSET
+	    && !strcmp(context, *prev_context))
+		return 0;
 
 	fd = openattr(pid, attr, O_RDWR);
 	if (fd < 0)
 		return -1;
-	if (context)
+	if (context) {
+		ret = -1;
+		context2 = strdup(context);
+		if (!context2)
+			goto out;
 		do {
-			ret = write(fd, context, strlen(context) + 1);
+			ret = write(fd, context2, strlen(context2) + 1);
 		} while (ret < 0 && errno == EINTR);
-	else
+	} else {
 		do {
 			ret = write(fd, NULL, 0);	/* clear */
 		} while (ret < 0 && errno == EINTR);
+	}
+out:
 	errno_hold = errno;
 	close(fd);
 	errno = errno_hold;
-	if (ret < 0)
+	if (ret < 0) {
+		free(context2);
 		return -1;
-	else
+	} else {
+		if (*prev_context != UNSET)
+			free(*prev_context);
+		*prev_context = context2;
 		return 0;
+	}
+}
+
+static int setprocattrcon(const char * context,
+			  pid_t pid, const char *attr)
+{
+	int ret;
+	char * rcontext;
+
+	if (selinux_trans_to_raw_context(context, &rcontext))
+		return -1;
+
+	ret = setprocattrcon_raw(rcontext, pid, attr);
+
+	freecon(rcontext);
+
+	return ret;
 }
 
 #define getselfattr_def(fn, attr) \
+	int get##fn##_raw(char **c) \
+	{ \
+		return getprocattrcon_raw(c, 0, #attr); \
+	} \
 	int get##fn(char **c) \
 	{ \
 		return getprocattrcon(c, 0, #attr); \
 	}
 
 #define setselfattr_def(fn, attr) \
+	int set##fn##_raw(const char * c) \
+	{ \
+		return setprocattrcon_raw(c, 0, #attr); \
+	} \
 	int set##fn(const char * c) \
 	{ \
 		return setprocattrcon(c, 0, #attr); \
@@ -137,6 +307,15 @@ static int setprocattrcon(const char * context,
 	setselfattr_def(fn, attr)
 
 #define getpidattr_def(fn, attr) \
+	int get##fn##_raw(pid_t pid, char **c)	\
+	{ \
+		if (pid <= 0) { \
+			errno = EINVAL; \
+			return -1; \
+		} else { \
+			return getprocattrcon_raw(c, pid, #attr); \
+		} \
+	} \
 	int get##fn(pid_t pid, char **c)	\
 	{ \
 		if (pid <= 0) { \

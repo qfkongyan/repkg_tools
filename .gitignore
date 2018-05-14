@@ -1,0 +1,68 @@
+#
+# NOTE! Don't add files that are generated in specific
+# subdirectories here. Add them in the ".gitignore" file
+# in that subdirectory instead.
+#
+# Normal rules
+#
+.*
+*.o
+*.lo
+*.Po
+*.Plo
+*.la
+*.log
+*.o.*
+*.a
+*.pc
+*.m4
+*.status
+ltmain.sh
+missing
+install-sh
+libtool
+depcomp
+autom4te.cache
+compile
+stamp-h1
+Makefile
+config.guess
+config.sub
+config.status
+INSTALL
+config.h.in~
+config.h
+configure
+*/.libs
+*/.deps
+*.deps
+external/pcre/dist2/ar-lib
+external/pcre/dist2/test-driver
+external/sgs4ext4fs/sgs4ext4fs
+system/core/cpio/mkbootfs
+system/core/libsparse/append2simg
+system/core/libsparse/img2simg
+system/core/libsparse/simg2img
+system/core/libsparse/simg2simg
+system/core/mkbootimg/mkbootimg
+system/core/mkbootimg/unpackbootimg
+system/extras/ext4_utils/ext2simg
+system/extras/ext4_utils/make_ext4fs
+test-driver
+Makefile.in
+external/zlib/src/config.h.in
+# folder
+out/
+
+# host programs on Cygwin
+*.exe
+
+#
+# git files that we don't want to ignore even it they are dot-files
+#
+!.gitignore
+!.mailmap
+
+*.orig
+*~
+\#*#

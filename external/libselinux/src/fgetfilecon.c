@@ -7,7 +7,7 @@
 #include "selinux_internal.h"
 #include "policy.h"
 
-int fgetfilecon(int fd, char ** context)
+int fgetfilecon_raw(int fd, char ** context)
 {
 	char *buf;
 	ssize_t size;
@@ -39,7 +39,7 @@ int fgetfilecon(int fd, char ** context)
       out:
 	if (ret == 0) {
 		/* Re-map empty attribute values to errors. */
-		errno = EOPNOTSUPP;
+		errno = ENOTSUP;
 		ret = -1;
 	}
 	if (ret < 0)
@@ -49,3 +49,24 @@ int fgetfilecon(int fd, char ** context)
 	return ret;
 }
 
+hidden_def(fgetfilecon_raw)
+
+int fgetfilecon(int fd, char ** context)
+{
+	char * rcontext = NULL;
+	int ret;
+
+	*context = NULL;
+
+	ret = fgetfilecon_raw(fd, &rcontext);
+
+	if (ret > 0) {
+		ret = selinux_raw_to_trans_context(rcontext, context);
+		freecon(rcontext);
+	}
+
+	if (ret >= 0 && *context)
+		return strlen(*context) + 1;
+
+	return ret;
+}
