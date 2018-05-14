@@ -8,5 +8,7 @@ SUBDIRS = external/libselinux/ \
 	system/core/libmincrypt/ \
 	system/core/cpio/ \
 	system/extras/ext4_utils/ \
-	system/core/mkbootimg
+	system/core/mkbootimg \
+        external/bzip2 \
+        bootable/recovery/applypatch
 

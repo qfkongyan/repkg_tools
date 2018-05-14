@@ -53,10 +53,12 @@ Makefile.in
 external/zlib/src/config.h.in
 # folder
 out/
-
+out
 # host programs on Cygwin
 *.exe
 
+
+*.cache/
 #
 # git files that we don't want to ignore even it they are dot-files
 #
