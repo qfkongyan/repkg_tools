@@ -31,3 +31,5 @@ AM_CPPFLAGS		+= -DANDROID \
     -DNO_DB_BACKEND \
     -DBUILD_HOST \
     -DUSE_PCRE2
+
+
