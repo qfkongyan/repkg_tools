@@ -31,6 +31,7 @@ config.sub
 config.status
 INSTALL
 config.h.in~
+config.h.in
 config.h
 configure
 */.libs

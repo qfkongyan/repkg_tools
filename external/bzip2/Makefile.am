@@ -12,4 +12,5 @@ libbz_la_SOURCES= \
 
 bin_PROGRAMS=bzip2
 bzip2_SOURCES=bzip2.c
-bzip2_LDADD=libbz.a
+bzip2_LDADD=libbz.la
+
