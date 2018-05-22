@@ -91,4 +91,5 @@ AC_OUTPUT([Makefile
 			system/core/mkbootimg/Makefile
 			external/bzip2/Makefile
 			bootable/recovery/applypatch/Makefile
+			system/extras/ext4extract/Makefile
 			])

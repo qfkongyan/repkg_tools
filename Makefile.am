@@ -10,5 +10,6 @@ SUBDIRS = external/libselinux/ \
 	system/extras/ext4_utils/ \
 	system/core/mkbootimg \
         external/bzip2 \
-        bootable/recovery/applypatch
+        bootable/recovery/applypatch \
+	system/extras/ext4extract/
 
